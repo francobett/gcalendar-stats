@@ -91,6 +91,9 @@ env.bak/
 venv.bak/
 myenv/
 
+.DS_Store
+.#README.md
+
 # Spyder project settings
 .spyderproject
 .spyproject
@@ -109,3 +112,6 @@ credentials.json
 
 # token pickle
 token.pickle
+
+# results
+calendar_stats*

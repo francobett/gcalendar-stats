@@ -1,30 +1,32 @@
 from __future__ import print_function
+import copy
 import datetime
 import dateutil.parser
+import sys
 
-from constants import events_status
+from constants import (
+    events_dict,
+    team_general,
+)
 from gcalendarAPI import get_gc_creds
+from helpers import export_results_to_csv
 
 
-def main():
+def main(days, team_label):
     """
     Get data about your events in your G Calendar
     """
-    # TODO convert this var as arguments for the command call
-    days = 14
-    team_label = 'xDev meetings'
-    work_hours = 8 * days
+    data = {}
+    teams_fields = [team_general, team_label]
+    for team in teams_fields:
+        data[team] = copy.deepcopy(events_dict)
 
     gcalendar = get_gc_creds()
 
-    # Call the Calendar API
     now = datetime.datetime.now()
     min_date = now - datetime.timedelta(days=days)
-    print('Events from: {} to : {}'.format(
-        now.strftime("%H:%M:%S - %d, %b %Y"),
-        min_date.strftime("%H:%M:%S - %d, %b %Y"),
-    ))
 
+    # Call the Calendar API
     events_result = gcalendar.events().list(
         calendarId='primary',
         timeMin=min_date.isoformat() + 'Z',
@@ -34,21 +36,22 @@ def main():
     ).execute()
     events = events_result.get('items', [])
 
-    team_events_status = events_status.copy()
-
     if not events:
         print('No upcoming events found.')
         return
 
     # TODO optimize this FOR statement
     for event in events:
-        # avoid events when guests can see others.
+        # avoid events when guests can't see others.
         if not event.get('guestsCanSeeOtherGuests', True):
             continue
         for attendee in event.get('attendees', []):
             # Get your info about the event
             if attendee.get('self'):
-                events_status[attendee['responseStatus']]['names'].append(
+                data[team_general][attendee['responseStatus']]['names'].append(
+                    event['summary']
+                )
+                data[team_general]['total']['names'].append(
                     event['summary']
                 )
                 start = event['start'].get('dateTime',)
@@ -57,62 +60,36 @@ def main():
                     duration = (
                         dateutil.parser.parse(end) - dateutil.parser.parse(start)
                     ).total_seconds() / 3600
-                    events_status[attendee['responseStatus']]['time'] += duration
+                    data[team_general]['total']['time'] += duration
+                    data[team_general][attendee['responseStatus']]['time'] += duration
 
                 # Stats for the team label
                 if event['organizer'].get('displayName') == team_label:
-                    team_events_status['total'] += 1
-                    team_events_status[attendee['responseStatus']]['names'].append(
+                    data[team_label]['total']['names'].append(
                         event['summary']
                     )
-                    team_events_status[attendee['responseStatus']]['time'] += duration
+                    data[team_label]['total']['time'] += duration
+                    data[team_label][attendee['responseStatus']]['names'].append(
+                        event['summary']
+                    )
+                    data[team_label][attendee['responseStatus']]['time'] += duration
 
-    # TODO optimize print
-    # TODO send this result to a .csv
-    # Show results
-
-    print('Work hours {}'.format(work_hours))
-    print('% of your time with accepted meetings: {:.2f}%'.format(
-        events_status['accepted']['time'] / work_hours * 100
-    ))
-    print('% of your time with accepted meetings: {:.2f}%'.format(
-        team_events_status['accepted']['time'] / work_hours * 100
-    ))
-    print('GENERAL Calendar stats in the last {} days'.format(
+    export_results_to_csv(
+        data,
         days,
-    ))
-    print('COUNT \n\nTOTAL: {} \n CONFIRMED:{} \n DECLINED:{} \n MAYBE:{} \n NO RESPONDED:{} \n'.format(
-        len(events),
-        len(events_status['accepted']['names']),
-        len(events_status['declined']['names']),
-        len(events_status['tentative']['names']),
-        len(events_status['needsAction']['names']),
-    ))
-    print('HOURS \n \n CONFIRMED:{} \n DECLINED:{} \n MAYBE:{} \n NO RESPONDED:{} \n'.format(
-        events_status['accepted']['time'],
-        events_status['declined']['time'],
-        events_status['tentative']['time'],
-        events_status['needsAction']['time'],
-    ))
-
-    print('TEAM: {} Calendar stats in the last {} days'.format(
-        team_label,
-        days,
-    ))
-    print('COUNT \n\nTOTAL: {} \n CONFIRMED:{} \n DECLINED:{} \n MAYBE:{} \n NO RESPONDED:{} \n'.format(
-        team_events_status['total'],
-        len(team_events_status['accepted']['names']),
-        len(team_events_status['declined']['names']),
-        len(team_events_status['tentative']['names']),
-        len(team_events_status['needsAction']['names']),
-    ))
-    print('HOURS \n \n CONFIRMED:{} \n DECLINED:{} \n MAYBE:{} \n NO RESPONDED:{} \n'.format(
-        team_events_status['accepted']['time'],
-        team_events_status['declined']['time'],
-        team_events_status['tentative']['time'],
-        team_events_status['needsAction']['time'],
-    ))
+        teams_fields,
+        now,
+    )
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        days = int(sys.argv[1])
+    except IndexError:
+        days = 14
+    try:
+        team_label = str(sys.argv[2])
+    except IndexError:
+        team_label = 'xDev meetings'
+
+    main(days, team_label)

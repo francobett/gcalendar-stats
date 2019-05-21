@@ -1,6 +1,9 @@
 # Dicts
-events_status = {
-    'total': 0,
+events_dict = {
+    'total': {
+        'names': [],
+        'time': 0.0,
+    },
     'accepted': {  # Yes
         'names': [],
         'time': 0.0,
@@ -18,3 +21,10 @@ events_status = {
         'time': 0.0,
     },
 }
+
+# CSV
+csv_fields = ['Events type', 'Count', 'Time(h)', '% of total']
+team_general = 'General'
+
+# Events states
+events_states = ['accepted', 'declined', 'tentative', 'needsAction', 'total']
