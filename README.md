@@ -9,6 +9,7 @@
 1. Setup environment
 2. Run `main.py` : `pyton gcalendar-stats/main.py`
 - You can specify the number of days and your team label ex: 10 days and myTeam: `pyton gcalendar-stats/main.py 10 "myTeam"`
+- Default is: *14 days* and *XDev Meetings*
 3. Give access to the app to the G calendar
 4. Check results in `/results` folder.
 
